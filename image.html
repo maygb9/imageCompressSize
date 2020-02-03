@@ -1,0 +1,302 @@
+<html>
+<head>
+<style>
+img {
+
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 5px;
+}
+img:hover {
+  box-shadow: 0 0 2px 1px rgba(0, 140, 186, 0.5);
+cursor: zoom-in;
+}
+</style>
+
+<link  href="https://cdnjs.cloudflare.com/ajax/libs/viewerjs/1.5.0/viewer.css" rel="stylesheet">
+    <title>Using FileReader API with HTML5 Canvas</title>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.10.1/jquery.min.js"></script>
+	
+	<script type="text/javascript" src="viewer.js"></script>
+	<script type="text/javascript" src="buffer.js"></script>
+</head>
+<body>
+    Resize Image to: <input type="text" style="width:50px;" value="20" id="size" /> %
+
+    <p><input type="file" id="file" multiple /></p>
+	
+    <div src="" id="img"  ondblclick="previewFn()"></d>
+	
+
+	
+</body>
+
+<script>
+var source;
+var WSC;
+function DirectoryEntryHandler(fs) {
+        //WSC.BaseHandler.prototype.constructor.call(this)
+        this.fs = fs
+        //this.debugInterval = setInterval( this.debug.bind(this), 1000)
+        this.entry = null
+        this.file = fs //null
+        this.readChunkSize = 4096 * 16
+        this.fileOffset = 0
+        this.fileEndOffset = 0
+        this.bodyWritten = 0
+        this.isDirectoryListing = false
+        //request.connection.stream.onclose = this.onClose.bind(this)
+    };
+	
+	DirectoryEntryHandler.prototype.onReadChunk = function(evt) {
+            //console.log('onReadChunk')
+            if (evt.target.result) {
+                this.bodyWritten += evt.target.result.byteLength
+                if (this.bodyWritten >= this.responseLength) {
+                    //this.request.connection.stream.onWriteBufferEmpty = null
+                }
+                //console.log(this.request.connection.stream.sockId,'write',evt.target.result.byteLength)
+				source = evt.target.result;
+                //this.request.connection.write(evt.target.result)
+            } else {
+                console.error('onreadchunk error',evt.target.error)
+                this.request.connection.close()
+            }
+        };
+	DirectoryEntryHandler.prototype.doReadChunk = function() {
+            //console.log(this.request.connection.stream.sockId, 'doReadChunk', this.fileOffset)
+            var reader = new FileReader;
+
+            var endByte = Math.min(this.fileOffset + this.readChunkSize,
+                                   this.fileEndOffset)
+            if (endByte >= this.file.size) {
+                console.error('bad readChunk')
+                //console.assert(false)
+            }
+
+            //console.log('doReadChunk',this.fileOffset,endByte-this.fileOffset)
+            reader.onload = this.onReadChunk.bind(this)
+            reader.onerror = this.onReadChunk.bind(this)
+            var blobSlice = this.file.slice(this.fileOffset, endByte + 1)
+            var oldOffset = this.fileOffset
+            this.fileOffset += (endByte - this.fileOffset) + 1
+            //console.log('offset',oldOffset,this.fileOffset)
+            reader.readAsArrayBuffer(blobSlice)
+        };
+	DirectoryEntryHandler.prototype.onWriteBufferEmpty = function() {
+			this.doReadChunk();
+		};
+
+// === RESIZE ====
+
+function resizeMe(img) {
+  
+  var canvas = document.createElement('canvas');
+
+  var width = img.width;
+  var height = img.height;
+
+  // calculate the width and height, constraining the proportions
+  if (width > height) {
+    if (width > max_width) {
+      //height *= max_width / width;
+      height = Math.round(height *= max_width / width);
+      width = max_width;
+    }
+  } else {
+    if (height > max_height) {
+      //width *= max_height / height;
+      width = Math.round(width *= max_height / height);
+      height = max_height;
+    }
+  }
+  
+  // resize the canvas and draw the image data into it
+  canvas.width = width;
+  canvas.height = height;
+  var ctx = canvas.getContext("2d");
+  ctx.drawImage(img, 0, 0, width, height);
+  
+  return canvas.toDataURL("image/jpeg",0.7); // get the data from canvas as 70% JPG (can be also PNG, etc.)
+  
+  // you can get BLOB too by using canvas.toBlob(blob => {});
+
+}
+
+/////////////////
+function processfile(blob) {
+    // read the files
+    var reader = new FileReader();
+    reader.readAsArrayBuffer(blob);
+    
+    reader.onload = function (event) {
+      // blob stuff
+	  var a = event.target.result;
+	  
+	  //Custom
+	  var buf = window.Buffer;
+	  
+	  var a = buf.prototype.consume_any_max(100000);
+	  //
+	  
+      var blob = new Blob([a]); // create blob...
+      window.URL = window.URL || window.webkitURL;
+      var blobURL = window.URL.createObjectURL(blob); // and get it's URL
+      
+      // helper Image object
+      var image = new Image();
+      image.src = blobURL;
+      image.onload = function() {
+        // have to wait till it's loaded
+        var resized = resizeMe(image); // resized image url
+		var img = new Image();
+				img.src = resized;
+				$('#img').append(img);
+      }
+    };
+}
+
+// === RESIZE ====
+
+function resizeMe(img) {
+  var max_width = 500;
+  var max_height = 500;
+  var canvas = document.createElement('canvas');
+
+  var width = img.width;
+  var height = img.height;
+
+  // calculate the width and height, constraining the proportions
+  if (width > height) {
+    if (width > max_width) {
+      //height *= max_width / width;
+      height = Math.round(height *= max_width / width);
+      width = max_width;
+    }
+  } else {
+    if (height > max_height) {
+      //width *= max_height / height;
+      width = Math.round(width *= max_height / height);
+      height = max_height;
+    }
+  }
+  
+  // resize the canvas and draw the image data into it
+  canvas.width = width;
+  canvas.height = height;
+  var ctx = canvas.getContext("2d");
+  ctx.drawImage(img, 0, 0, width, height);
+  
+  return canvas.toDataURL("image/jpeg",0.5); // get the data from canvas as 70% JPG (can be also PNG, etc.)
+  
+  // you can get BLOB too by using canvas.toBlob(blob => {});
+
+}
+////////////////
+function test(){
+fetch('http://example.com/movies.json')
+  .then((response) => {
+    return response.json();
+  })
+  .then((myJson) => {
+    console.log(myJson);
+  });
+}
+		
+function getArrayBuffer(file) {
+    return new Promise(function (resolve, reject) {
+        var reader = new FileReader();
+
+        reader.onloadend = function (e) {
+            resolve(e.target.result);
+        };
+		reader.onprogress = function (e) {
+            console.log(e.target.result);
+			var arrayBuffer = reader.result;
+			//Custom
+	  var buf = window.Buffer;	 
+	  buf.prototype.init();
+	  buf.prototype.add(reader.result);
+	  arrayBuffer = buf.prototype.consume_any_max(1000000);//1000000 is 1MB
+	  //
+			const blob = new Blob([arrayBuffer], {type: 'image/png'});
+				//let src = URL.createObjectURL(blob);
+				var img = new Image();
+				img.src = URL.createObjectURL(blob);
+				$('#img').append(img);
+        };
+		
+        reader.onerror = function (e) {
+            reject(e.target.error);
+        };
+        reader.readAsArrayBuffer(file);
+    });
+}
+
+    $(document).ready(function () {
+        $('#file').change(function () {
+            if (this.files.length > 0) {
+
+                $.each(this.files, function (i, v) {
+				
+				//processfile(this);
+				
+				getArrayBuffer(this).then(function (arrayBuffer) {
+				//console.log(arrayBuffer);				
+				});
+				
+				//var entry = new DirectoryEntryHandler(this);
+				//entry.onWriteBufferEmpty(this);
+				
+                 /*   var reader = new FileReader();
+
+                    reader.onload = function (e) {
+                        var img = new Image();
+                        img.src = e.target.result;
+
+                        img.onload = function () {
+
+                            // CREATE A CANVAS ELEMENT AND ASSIGN THE IMAGES TO IT.
+                            var canvas = document.createElement("canvas");
+
+                            var value = $('#size').val();
+
+                            // RESIZE THE IMAGES ONE BY ONE.
+                            img.width = (img.width * value) / 100
+                            img.height = (img.height * value) / 100
+
+                            var ctx = canvas.getContext("2d");
+                            ctx.clearRect(0, 0, canvas.width, canvas.height);
+                            canvas.width = img.width;
+                            canvas.height = img.height;
+                            ctx.drawImage(img, 0, 0, img.width, img.height);
+							
+							//img.class="img-thumbnail";
+                            //$('#img').append(img);      // SHOW THE IMAGES OF THE BROWSER.
+
+                            // AUTO DOWNLOAD THE IMAGES, ONCES RESIZED.
+                            //var a = document.createElement('a');
+                            //a.href = canvas.toDataURL("image/png");
+                            //a.download = 'sample.jpg';
+                            //document.body.appendChild(a);
+                            //a.click();
+							
+							
+                        }
+                    };
+                    reader.readAsDataURL(this);*/
+					
+                });
+            }
+        });
+    });
+	
+
+	// View a list of images
+const gallery = new Viewer(document.getElementById('img'));
+
+function previewFn(){
+gallery.update();
+}
+</script>
+</html>
